@@ -1,0 +1,34 @@
+---
+name: Terraform
+
+on:
+  workflow_call:
+    inputs:
+      terraform_version:
+        description: 'The version of Terraform CLI to install'
+        default: 'latest'
+        required: false
+        type: string
+      working_dir:
+        description: 'Switch to a different working directory before executing the given subcommand'
+        default: '.'
+        required: false
+        type: string
+
+jobs:
+  terraform:
+    name: Validate Terraform
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v1
+        with:
+          terraform_version: ${{ inputs.terraform_version }}
+      - name: Terraform Format
+        run: terraform -chdir=${{ inputs.working_dir }} fmt -check -diff
+      - name: Terraform Init
+        run: terraform -chdir=${{ inputs.working_dir }} init
+      - name: Terraform Validate
+        run: terraform -chdir=${{ inputs.working_dir }} validate -no-color

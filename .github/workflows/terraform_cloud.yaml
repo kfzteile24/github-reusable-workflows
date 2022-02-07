@@ -1,0 +1,95 @@
+---
+name: Terraform
+
+on:
+  workflow_call:
+    inputs:
+      multiple_workspaces:
+        description: 'If true it will support multiple workspaces'
+        default: false
+        required: false
+        type: boolean
+      terraform_version:
+        description: 'The version of Terraform CLI to install'
+        default: 'latest'
+        required: false
+        type: string
+      working_dir:
+        description: 'Switch to a different working directory before executing the given subcommand'
+        default: '.'
+        required: false
+        type: string
+    secrets:
+      cli_config_credentials_token:
+        description: 'The API token for a Terraform Cloud/Enterprise instance'
+        required: false
+      github-token:
+        description: 'The token used to authenticate with GitHub'
+        required: false
+
+jobs:
+  terraform:
+    name: Validate Terraform
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Environment (stage)
+        if: ${{ inputs.multiple_workspaces && (github.base_ref == 'develop' || github.ref == 'refs/heads/develop') }}
+        run: |
+          echo "TF_WORKSPACE=stage" >> $GITHUB_ENV
+      - name: Environment (prod)
+        if: ${{ inputs.multiple_workspaces && (github.base_ref == 'main' || github.ref == 'refs/heads/main') }}
+        run: |
+          echo "TF_WORKSPACE=prod" >> $GITHUB_ENV
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v1
+        with:
+          cli_config_credentials_token: ${{ secrets.cli_config_credentials_token }}
+          terraform_version: ${{ inputs.terraform_version }}
+      - name: Terraform Format
+        id: fmt
+        run: terraform -chdir=${{ inputs.working_dir }} fmt -check -diff
+      - name: Terraform Init
+        id: init
+        run: terraform -chdir=${{ inputs.working_dir }} init
+      - name: Terraform Validate
+        id: validate
+        run: terraform -chdir=${{ inputs.working_dir }} validate -no-color
+      - name: Terraform Plan
+        id: plan
+        if: github.event_name == 'pull_request'
+        run: terraform -chdir=${{ inputs.working_dir }} plan -no-color
+        continue-on-error: true
+      - name: Update Pull Request
+        uses: actions/github-script@v5
+        if: github.event_name == 'pull_request'
+        env:
+          PLAN: "terraform\n${{ steps.plan.outputs.stdout }}"
+        with:
+          github-token: ${{ secrets.github-token }}
+          script: |
+            const output = `#### Terraform Format and Style 🖌\`${{ steps.fmt.outcome }}\`
+            #### Terraform Initialization ⚙️\`${{ steps.init.outcome }}\`
+            #### Terraform Plan 📖\`${{ steps.plan.outcome }}\`
+            #### Terraform Validation 🤖\`${{ steps.validate.outcome }}\`
+
+            <details><summary>Show Plan</summary>
+
+            \`\`\`\n
+            ${process.env.PLAN}
+            \`\`\`
+
+            </details>
+
+            *Pusher: @${{ github.actor }}, Action: \`${{ github.event_name }}\`*`;
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: output
+            })
+      - name: Terraform Plan Status
+        if: steps.plan.outcome == 'failure'
+        run: exit 1

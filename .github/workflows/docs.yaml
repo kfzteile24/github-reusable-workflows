@@ -1,0 +1,49 @@
+---
+name: Readme
+
+on:
+  workflow_call:
+    inputs:
+      git-commit-message:
+        description: 'Commit message'
+        default: 'terraform-docs: automated action'
+        required: false
+        type: string
+      git-push:
+        description: 'If true it will commit and push the changes'
+        default: false
+        required: false
+        type: boolean
+      output-file:
+        description: 'File in module directory where the docs should be placed'
+        default: 'USAGE.md'
+        required: false
+        type: string
+      output-method:
+        description: 'Method should be one of replace, inject, or print'
+        default: 'inject'
+        required: false
+        type: string
+      working-dir:
+        description: 'Comma separated list of directories to generate docs for'
+        default: '.'
+        required: false
+        type: string
+
+jobs:
+  readme:
+    name: Generate Readme
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+      - name: Generate Readme
+        uses: terraform-docs/gh-actions@v0.11.0
+        with:
+          working-dir: ${{ inputs.working-dir }}
+          output-file: ${{ inputs.output-file }}
+          output-method: ${{ inputs.output-method }}
+          git-commit-message: ${{ inputs.git-commit-message }}
+          git-push: ${{ inputs.git-push }}

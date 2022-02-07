@@ -1,0 +1,32 @@
+---
+name: Release
+
+on:
+  workflow_call:
+    inputs:
+      bump-minor-pre-major:
+        description: 'Should breaking changes before 1.0.0 produce minor bumps'
+        default: false
+        required: false
+        type: boolean
+      pull-request-title-pattern:
+        description: 'Title pattern used to make release PR'
+        default: 'chore${scope}: release${component} ${version}'
+        required: false
+        type: string
+      release-type:
+        description: 'What type of project is this a release for'
+        required: true
+        type: string
+
+jobs:
+  release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create Release
+        uses: GoogleCloudPlatform/release-please-action@v3
+        with:
+          release-type: ${{ inputs.release-type }}
+          bump-minor-pre-major: ${{ inputs.bump-minor-pre-major }}
+          pull-request-title-pattern: ${{ inputs.pull-request-title-pattern }}
