@@ -25,7 +25,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Create Release
-        uses: GoogleCloudPlatform/release-please-action@v3
+        uses: GoogleCloudPlatform/release-please-action@v4
         with:
           release-type: ${{ inputs.release-type }}
           bump-minor-pre-major: ${{ inputs.bump-minor-pre-major }}
